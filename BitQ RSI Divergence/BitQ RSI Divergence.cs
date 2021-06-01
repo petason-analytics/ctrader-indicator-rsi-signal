@@ -14,6 +14,8 @@ namespace cAlgo
         public DataSeries Source { get; set; }
         [Parameter()]
         public int periods { get; set; }
+        [Parameter("isBot", DefaultValue = false)]
+        public bool isBot { get; set; }
         [Output("Main")]
         public IndicatorDataSeries Result { get; set; }
 
@@ -34,15 +36,32 @@ namespace cAlgo
         private bool isLastPeak = false;
         private ArrayList peakList = new ArrayList();
         private ArrayList troughtList = new ArrayList();
+        public ArrayList RSIDiv = new ArrayList();
+
+        public struct RSIDivType
+        {
+            public Point startPoint;
+            public Point endPoint;
+            public int triggerIndex;
+            public bool isBearish;
+            public RSIDivType(Point _startPoint, Point _endPoint, int _triggerIndex, bool _isBearish)
+            {
+                startPoint = _startPoint;
+                endPoint = _endPoint;
+                triggerIndex = _triggerIndex;
+                isBearish = _isBearish;
+            }
+        }
 
         protected override void Initialize()
         {
-            IndicatorArea.RemoveAllObjects();
             // Initialize and create nested indicators
             rsi = Indicators.RelativeStrengthIndex(Source, periods);
-            IndicatorArea.DrawHorizontalLine("70", 70, Color.IndianRed, 1, LineStyle.LinesDots);
-            IndicatorArea.DrawHorizontalLine("30", 30, Color.IndianRed, 1, LineStyle.LinesDots);
-
+            if (!isBot)
+            {
+                IndicatorArea.DrawHorizontalLine("70", 70, Color.IndianRed, 1, LineStyle.LinesDots);
+                IndicatorArea.DrawHorizontalLine("30", 30, Color.IndianRed, 1, LineStyle.LinesDots);
+            }
         }
 
 
@@ -58,6 +77,11 @@ namespace cAlgo
             //}
         }
 
+        public ArrayList getRSIDivData()
+        {
+            return RSIDiv;
+        }
+
 
         public void findPeakTrough(int index)
         {
@@ -68,8 +92,11 @@ namespace cAlgo
                 {
                     if (Result[index - 2] < Result[index - 1] && Result[index - 1] > Result[index])
                     {
-                        IndicatorArea.DrawIcon("RSI_peak_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Cyan);
-                        IndicatorArea.DrawText("RSI_peak_x" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Cyan);
+                        if (!isBot)
+                        {
+                            IndicatorArea.DrawIcon("RSI_peak_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Cyan);
+                            IndicatorArea.DrawText("RSI_peak_x" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Cyan);
+                        }
                         var point = new Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
                         peakList.Add(point);
                         if (isLastPeak)
@@ -84,15 +111,18 @@ namespace cAlgo
                 {
                     if (Result[index - 2] > Result[index - 1] && Result[index - 1] < Result[index])
                     {
-                        IndicatorArea.DrawIcon("RSI_trought_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Blue);
-                        IndicatorArea.DrawText("RSI_trought_t_" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Blue);
+                        if (!isBot)
+                        {
+                            IndicatorArea.DrawIcon("RSI_trought_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Blue);
+                            IndicatorArea.DrawText("RSI_trought_t_" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Blue);
+                        }
                         var point = new Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
                         troughtList.Add(point);
                         if (!isLastPeak)
                         {
                             filterBullish();
                         }
-                        
+
                         peakList = new ArrayList();
                         isLastPeak = false;
                     }
@@ -105,14 +135,14 @@ namespace cAlgo
             if (troughtList.Count >= 2)
             {
                 Point currPoint = (Point)troughtList[troughtList.Count - 1];
-                for(int i= 0; i < troughtList.Count; i++)
+                for (int i = 0; i < troughtList.Count; i++)
                 {
                     Point iPoint = (Point)troughtList[i];
                     if (iPoint.value < currPoint.value)
                     {
                         if (!isBrokenLine(troughtList, i, troughtList.Count - 1, false))
                         {
-                            if(isDivergenceTrought(iPoint, currPoint))
+                            if (isDivergenceTrought(iPoint, currPoint))
                             {
                                 double open1 = Bars.OpenPrices[iPoint.index];
                                 double close1 = Bars.ClosePrices[iPoint.index];
@@ -120,14 +150,21 @@ namespace cAlgo
                                 var open2 = Bars.OpenPrices[currPoint.index];
                                 var close2 = Bars.ClosePrices[currPoint.index];
                                 var trought2 = Math.Min(open2, close2);
-                                Chart.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, trought1, currPoint.index, trought2, Color.Yellow, 2);
-                                IndicatorArea.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.Yellow, 3);
+                                if (!isBot)
+                                {
+                                    Chart.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, trought1, currPoint.index, trought2, Color.Red, 2);
+                                    IndicatorArea.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.Red, 3);
+                                }
+                                // Add to chart data;
+                                RSIDivType rsiEle = new RSIDivType(iPoint, currPoint, currPoint.index, false);
+                                RSIDiv.Add(rsiEle);
                             }
                         }
                     }
                 }
             }
         }
+
 
         public void filterBearish()
         {
@@ -149,8 +186,14 @@ namespace cAlgo
                                 var open2 = Bars.OpenPrices[currPoint.index];
                                 var close2 = Bars.ClosePrices[currPoint.index];
                                 var peak2 = Math.Max(open2, close2);
-                                Chart.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, peak1, currPoint.index, peak2, Color.AliceBlue, 2);
-                                IndicatorArea.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.AliceBlue, 3);
+                                if (!isBot)
+                                {
+                                    Chart.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, peak1, currPoint.index, peak2, Color.AliceBlue, 2);
+                                    IndicatorArea.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.AliceBlue, 3);
+                                }
+                                // Add to chart data;
+                                RSIDivType rsiEle = new RSIDivType(iPoint, currPoint, currPoint.index, true);
+                                RSIDiv.Add(rsiEle);
                             }
                         }
                     }
@@ -206,7 +249,8 @@ namespace cAlgo
                         isBrokenLine = true;
                         break;
                     }
-                } else
+                }
+                else
                 {
                     if (value > iPoint.value)
                     {
@@ -214,7 +258,7 @@ namespace cAlgo
                         break;
                     }
                 }
-                
+
             }
             return isBrokenLine;
         }
