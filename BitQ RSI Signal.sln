@@ -1,7 +1,7 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BitQ RSI Divergence", "BitQ RSI Divergence\BitQ RSI Divergence.csproj", "{60CBBF5F-4F2A-4F1C-9F9C-EBCD948022DF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BitQ RSI Signal", "BitQ RSI Signal\BitQ RSI Signal.csproj", "{60CBBF5F-4F2A-4F1C-9F9C-EBCD948022DF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

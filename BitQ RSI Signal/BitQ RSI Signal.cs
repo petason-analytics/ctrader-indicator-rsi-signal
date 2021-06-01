@@ -8,7 +8,7 @@ using System.Collections;
 namespace cAlgo
 {
     [Indicator(IsOverlay = false, TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
-    public class BitQRSIDivergence : Indicator
+    public class BitQRSISignal : Indicator
     {
         [Parameter()]
         public DataSeries Source { get; set; }

@@ -2,10 +2,10 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("BitQ RSI Divergence")]
+[assembly: AssemblyTitle("BitQ RSI Signal")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyProduct("BitQ RSI Divergence")]
+[assembly: AssemblyProduct("BitQ RSI Signal")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
