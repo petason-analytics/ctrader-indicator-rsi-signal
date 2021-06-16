@@ -19,39 +19,12 @@ namespace cAlgo
         [Output("Main")]
         public IndicatorDataSeries Result { get; set; }
 
-        public struct Point
-        {
-            public int index;
-            public double value;
-            public DateTime dateTime;
-            public Point(int _index, double _value, DateTime _dateTime)
-            {
-                index = _index;
-                value = _value;
-                dateTime = _dateTime;
-            }
-        }
-
         private RelativeStrengthIndex rsi;
         private bool isLastPeak = false;
         private ArrayList peakList = new ArrayList();
         private ArrayList troughtList = new ArrayList();
         public ArrayList RSIDiv = new ArrayList();
-
-        public struct RSIDivType
-        {
-            public Point startPoint;
-            public Point endPoint;
-            public int triggerIndex;
-            public bool isBearish;
-            public RSIDivType(Point _startPoint, Point _endPoint, int _triggerIndex, bool _isBearish)
-            {
-                startPoint = _startPoint;
-                endPoint = _endPoint;
-                triggerIndex = _triggerIndex;
-                isBearish = _isBearish;
-            }
-        }
+        public int currIndex = 0;
 
         protected override void Initialize()
         {
@@ -64,13 +37,19 @@ namespace cAlgo
             }
         }
 
-
-
         public override void Calculate(int index)
         {
+            if(currIndex < index)
+            {
+                currIndex = index;
+            } else
+            {
+                return;
+            }
             // Calculate value at specified index
             // Result[index] = ...
             Result[index] = rsi.Result[index];
+            Print("index=" + index + "; rsi="+ rsi.Result[index]);
             //if (index >= 1029 && index <= 1037)
             //{
             findPeakTrough(index);
@@ -97,7 +76,7 @@ namespace cAlgo
                             IndicatorArea.DrawIcon("RSI_peak_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Cyan);
                             IndicatorArea.DrawText("RSI_peak_x" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Cyan);
                         }
-                        var point = new Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
+                        var point = new Utils.Base.Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
                         peakList.Add(point);
                         if (isLastPeak)
                         {
@@ -116,7 +95,7 @@ namespace cAlgo
                             IndicatorArea.DrawIcon("RSI_trought_" + (index - 1).ToString(), ChartIconType.Circle, index - 1, Result[index - 1], Color.Blue);
                             IndicatorArea.DrawText("RSI_trought_t_" + (index - 1).ToString(), (index - 1).ToString(), index - 1, Result[index - 1], Color.Blue);
                         }
-                        var point = new Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
+                        var point = new Utils.Base.Point(index - 1, Result[index - 1], Bars.OpenTimes.Last(index - 1));
                         troughtList.Add(point);
                         if (!isLastPeak)
                         {
@@ -134,29 +113,29 @@ namespace cAlgo
         {
             if (troughtList.Count >= 2)
             {
-                Point currPoint = (Point)troughtList[troughtList.Count - 1];
+                Utils.Base.Point currPoint = (Utils.Base.Point)troughtList[troughtList.Count - 1];
                 for (int i = 0; i < troughtList.Count; i++)
                 {
-                    Point iPoint = (Point)troughtList[i];
-                    if (iPoint.value < currPoint.value)
+                    Utils.Base.Point iPoint = (Utils.Base.Point)troughtList[i];
+                    if (iPoint.yValue < currPoint.yValue)
                     {
                         if (!isBrokenLine(troughtList, i, troughtList.Count - 1, false))
                         {
                             if (isDivergenceTrought(iPoint, currPoint))
                             {
-                                double open1 = Bars.OpenPrices[iPoint.index];
-                                double close1 = Bars.ClosePrices[iPoint.index];
+                                double open1 = Bars.OpenPrices[iPoint.barIndex];
+                                double close1 = Bars.ClosePrices[iPoint.barIndex];
                                 var trought1 = Math.Min(open1, close1);
-                                var open2 = Bars.OpenPrices[currPoint.index];
-                                var close2 = Bars.ClosePrices[currPoint.index];
+                                var open2 = Bars.OpenPrices[currPoint.barIndex];
+                                var close2 = Bars.ClosePrices[currPoint.barIndex];
                                 var trought2 = Math.Min(open2, close2);
                                 if (!isBot)
                                 {
-                                    Chart.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, trought1, currPoint.index, trought2, Color.Red, 2);
-                                    IndicatorArea.DrawTrendLine("Bullish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.Red, 3);
+                                    Chart.DrawTrendLine("Bullish_unconfirm1" + iPoint.barIndex + "-" + currPoint.barIndex, iPoint.barIndex, trought1, currPoint.barIndex, trought2, Color.Red, 2);
+                                    IndicatorArea.DrawTrendLine("Bullish_unconfirm1" + iPoint.barIndex + "-" + currPoint.barIndex, iPoint.barIndex, iPoint.yValue, currPoint.barIndex, currPoint.yValue, Color.Red, 3);
                                 }
                                 // Add to chart data;
-                                RSIDivType rsiEle = new RSIDivType(iPoint, currPoint, currPoint.index, false);
+                                Utils.Base.RsiData rsiEle = new Utils.Base.RsiData(iPoint, currPoint, Utils.Base.RSI_TYPE.BULLISH);
                                 RSIDiv.Add(rsiEle);
                             }
                         }
@@ -170,29 +149,29 @@ namespace cAlgo
         {
             if (peakList.Count >= 2)
             {
-                Point currPoint = (Point)peakList[peakList.Count - 1];
+                Utils.Base.Point currPoint = (Utils.Base.Point)peakList[peakList.Count - 1];
                 for (int i = 0; i < peakList.Count; i++)
                 {
-                    Point iPoint = (Point)peakList[i];
-                    if (iPoint.value > currPoint.value)
+                    Utils.Base.Point iPoint = (Utils.Base.Point)peakList[i];
+                    if (iPoint.yValue > currPoint.yValue)
                     {
                         if (!isBrokenLine(peakList, i, peakList.Count - 1, true))
                         {
                             if (isDivergencePeak(iPoint, currPoint))
                             {
-                                double open1 = Bars.OpenPrices[iPoint.index];
-                                double close1 = Bars.ClosePrices[iPoint.index];
+                                double open1 = Bars.OpenPrices[iPoint.barIndex];
+                                double close1 = Bars.ClosePrices[iPoint.barIndex];
                                 var peak1 = Math.Max(open1, close1);
-                                var open2 = Bars.OpenPrices[currPoint.index];
-                                var close2 = Bars.ClosePrices[currPoint.index];
+                                var open2 = Bars.OpenPrices[currPoint.barIndex];
+                                var close2 = Bars.ClosePrices[currPoint.barIndex];
                                 var peak2 = Math.Max(open2, close2);
                                 if (!isBot)
                                 {
-                                    Chart.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, peak1, currPoint.index, peak2, Color.AliceBlue, 2);
-                                    IndicatorArea.DrawTrendLine("Bearish_unconfirm1" + iPoint.index + "-" + currPoint.index, iPoint.index, iPoint.value, currPoint.index, currPoint.value, Color.AliceBlue, 3);
+                                    Chart.DrawTrendLine("Bearish_unconfirm1" + iPoint.barIndex + "-" + currPoint.barIndex, iPoint.barIndex, peak1, currPoint.barIndex, peak2, Color.AliceBlue, 2);
+                                    IndicatorArea.DrawTrendLine("Bearish_unconfirm1" + iPoint.barIndex + "-" + currPoint.barIndex, iPoint.barIndex, iPoint.yValue, currPoint.barIndex, currPoint.yValue, Color.AliceBlue, 3);
                                 }
                                 // Add to chart data;
-                                RSIDivType rsiEle = new RSIDivType(iPoint, currPoint, currPoint.index, true);
+                                Utils.Base.RsiData rsiEle = new Utils.Base.RsiData(iPoint, currPoint, Utils.Base.RSI_TYPE.BEARISH);
                                 RSIDiv.Add(rsiEle);
                             }
                         }
@@ -202,13 +181,13 @@ namespace cAlgo
             }
         }
 
-        public bool isDivergencePeak(Point startPoint, Point endPoint)
+        public bool isDivergencePeak(Utils.Base.Point startPoint, Utils.Base.Point endPoint)
         {
-            double open1 = Bars.OpenPrices[startPoint.index];
-            double close1 = Bars.ClosePrices[startPoint.index];
+            double open1 = Bars.OpenPrices[startPoint.barIndex];
+            double close1 = Bars.ClosePrices[startPoint.barIndex];
             var peak1 = Math.Max(open1, close1);
-            var open2 = Bars.OpenPrices[endPoint.index];
-            var close2 = Bars.ClosePrices[endPoint.index];
+            var open2 = Bars.OpenPrices[endPoint.barIndex];
+            var close2 = Bars.ClosePrices[endPoint.barIndex];
             var peak2 = Math.Max(open2, close2);
 
             if (peak1 < peak2)
@@ -216,13 +195,13 @@ namespace cAlgo
             return false;
         }
 
-        public bool isDivergenceTrought(Point startPoint, Point endPoint)
+        public bool isDivergenceTrought(Utils.Base.Point startPoint, Utils.Base.Point endPoint)
         {
-            double open1 = Bars.OpenPrices[startPoint.index];
-            double close1 = Bars.ClosePrices[startPoint.index];
+            double open1 = Bars.OpenPrices[startPoint.barIndex];
+            double close1 = Bars.ClosePrices[startPoint.barIndex];
             var trough1 = Math.Min(open1, close1);
-            var open2 = Bars.OpenPrices[endPoint.index];
-            var close2 = Bars.ClosePrices[endPoint.index];
+            var open2 = Bars.OpenPrices[endPoint.barIndex];
+            var close2 = Bars.ClosePrices[endPoint.barIndex];
             var trough2 = Math.Min(open2, close2);
 
             if (trough1 > trough2)
@@ -236,15 +215,16 @@ namespace cAlgo
             if (endIndex - startIndex == 1)
                 return false;
             double b, w;
-            findLine((Point)array[startIndex], (Point)array[endIndex], out b, out w);
+            var utils = new Utils.Base();
+            utils.findLine((Utils.Base.Point)array[startIndex], (Utils.Base.Point)array[endIndex], out b, out w);
 
             for (int i = startIndex + 1; i < endIndex; i++)
             {
-                Point iPoint = (Point)array[i];
-                var value = b * iPoint.index + w;
+                Utils.Base.Point iPoint = (Utils.Base.Point)array[i];
+                var value = b * iPoint.barIndex + w;
                 if (isPeak)
                 {
-                    if (value < iPoint.value)
+                    if (value < iPoint.yValue)
                     {
                         isBrokenLine = true;
                         break;
@@ -252,7 +232,7 @@ namespace cAlgo
                 }
                 else
                 {
-                    if (value > iPoint.value)
+                    if (value > iPoint.yValue)
                     {
                         isBrokenLine = true;
                         break;
@@ -261,12 +241,6 @@ namespace cAlgo
 
             }
             return isBrokenLine;
-        }
-
-        public void findLine(Point point1, Point point2, out double b, out double w)
-        {
-            b = (point2.value - point1.value) / (point2.index - point1.index);
-            w = point1.value - b * point1.index;
         }
 
         public bool isOverBought(int index)
